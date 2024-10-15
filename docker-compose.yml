@@ -1,0 +1,60 @@
+version: "3.5" #указываем версию
+services:      #расписыванием нащи сервисы
+  app:     #1 - сервис
+    build: . #на каком образе строим
+    #если надо собрать, то
+    #build: path - где лежит DockerFile
+    container_name: app #название контейнера
+    ports:              #указываем порты
+      - '8080:8080'
+    #restart: unless-stopped #как будет происходить рестарт
+    depends_on:   #зависимости без которых не будет запускаться сервис
+      - app-db
+      - pgadmin
+    networks:    #в каких сетях работает
+      - internet
+      - appnet
+
+  app-db:
+    image: postgres
+    container_name: app-postgres #это имя для сервера
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: "postgres"
+      POSTGRES_USER: "user"
+      POSTGRES_PASSWORD: "1065"
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - appnet
+
+  pgadmin:
+    container_name: pgadmin_container
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "user@habr.com"
+      PGADMIN_DEFAULT_PASSWORD: "1065"
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    restart: unless-stopped
+    networks:    #в каких сетях работает
+      - internet
+      - appnet
+
+volumes:
+  postgres-data:
+  pgadmin-data:
+
+networks:     #создаем сети
+  internet:
+    name: internet
+    driver: bridge #тип сети
+  appnet:
+    name: appnet
+    driver: bridge
