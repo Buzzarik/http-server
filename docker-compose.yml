@@ -11,8 +11,24 @@ services:      #расписыванием нащи сервисы
     depends_on:   #зависимости без которых не будет запускаться сервис
       - app-db
       - pgadmin
+      - app-numbers
     networks:    #в каких сетях работает
       - internet
+      - appnet
+
+  app-numbers:     #2 - сервис
+    build: generator_number #на каком образе строим
+    #если надо собрать, то
+    #build: path - где лежит DockerFile
+    container_name: app-numbers #название контейнера
+    ports:              #указываем порты
+      - '8081:8081' #может тут проблема???
+    restart: unless-stopped
+    #restart: unless-stopped #как будет происходить рестарт
+    depends_on:   #зависимости без которых не будет запускаться сервис
+      - app-db
+      - pgadmin
+    networks:    #в каких сетях работает
       - appnet
 
   app-db:

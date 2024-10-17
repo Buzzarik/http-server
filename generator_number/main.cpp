@@ -13,25 +13,17 @@
 #include <thread>
 #include <vector>
 #include "include/listener.hpp"
-#include "include/database.hpp"
 
 int main(int argc, char* argv[]){
-
-auto db = std::make_shared<PostgresDataBase>("host=app-postgres port=5432 dbname=postgres user=user password=1065");
-
-
 try{
-if (!db->is_open()){
-    std::cerr << "Нет бд\n";
-    return 0;
-}
 
 auto const threads = std::max<int>(1, 1);
 
 net::io_context ioc{threads};
 
-std::make_shared<Listener>(ioc, tcp::endpoint(net::ip::address::from_string("0.0.0.0"), 8080), db)->run();
-
+std::cerr << "fghjk\n";
+std::make_shared<Listener>(ioc, tcp::endpoint(net::ip::address::from_string("0.0.0.0"), 8081))->run();
+std::cerr << "1234567\n";
 std::vector<std::thread> v;
 v.reserve(threads - 1);
 for(auto i = threads - 1; i > 0; --i)

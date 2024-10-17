@@ -97,17 +97,22 @@ query.at("from"), query.at("to"), query.at("name"));
     return output_result(std::move(*res));
 }
 
-bool ExecutorDataBase::query_created(std::string_view body){
+bool ExecutorDataBase::query_created(std::string_view body, json::object&& date_and_number){
     boost::system::error_code ec;
+    std::cerr << "идем дальше по созданию 3\n";
     auto value = boost::json::parse(body, ec);
     if (ec || !value.is_object()){
         std::cerr << "некорректный json формат\n";
     }
+    std::cerr << "идем дальше по созданию 4\n";
     auto order = value.as_object();
-
-    if (!(order.contains("number") && order["number"].is_string() &&
-        order.contains("date") && order["date"].is_string() &&
-        order.contains("receiver") && order["receiver"].is_string() &&
+    if (!(date_and_number.contains("number") && date_and_number["number"].is_string() &&
+        date_and_number.contains("date") && date_and_number["date"].is_string())){
+            std::cerr << "некоректные данные с сервера numbers\n";
+            return false;
+    }
+    std::cerr << "идем дальше по созданию 5\n";
+    if (!(order.contains("receiver") && order["receiver"].is_string() &&
         order.contains("address") && order["address"].is_string() &&
         order.contains("type_pay") && order["type_pay"].is_string() &&
         order.contains("type_delivered") && order["type_delivered"].is_string() &&
@@ -116,6 +121,7 @@ bool ExecutorDataBase::query_created(std::string_view body){
         std::cerr << "неверные параметры json\n";
         return false;
     }
+    std::cerr << "идем дальше по созданию 6\n";
     size_t cost = 0;
     std::string query2;
     for (const auto& d : order["detail_orders"].as_array()){
@@ -148,10 +154,10 @@ begin \
 WITH inserted AS( \
 INSERT INTO public.\"Orders\"( \
 \"number\", cost, date, receiver, address, type_pay, type_delivered) \
-VALUES ('{}', {}, CURRENT_DATE, '{}', '{}', '{}', '{}') \
+VALUES ('{}', {}, '{}', '{}', '{}', '{}', '{}') \
 RETURNING id) \
-SELECT id INTO identifier FROM inserted;\n", std::string(order["number"].as_string()), cost, 
-                //std::string(order["date"].as_string()), пока ее нет
+SELECT id INTO identifier FROM inserted;\n", std::string(date_and_number["number"].as_string()), cost, 
+                std::string(date_and_number["date"].as_string()),
                 std::string(order["receiver"].as_string()),
                 std::string(order["address"].as_string()), 
                 std::string(order["type_pay"].as_string()), 

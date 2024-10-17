@@ -1,5 +1,81 @@
 #include "../include/session.hpp"
+#include <future>
+#include <chrono>
 
+
+std::optional<json::object> longRunningTask() {
+    try{
+        net::io_context ioc;
+        // These objects perform our I/O
+        tcp::resolver resolver(ioc);
+        beast::tcp_stream stream(ioc);
+        std::string host = "app-numbers";
+        std::string port = "8081";
+        // Look up the domain name
+        auto const results = resolver.resolve(host, port);
+
+        // Make the connection on the IP address we get from a lookup
+        stream.connect(results);
+        std::cerr <<  "удалось подключиться к number\n";
+
+        // Set up an HTTP GET request message
+        http::request<http::string_body> req{http::verb::post, "/numbers", 11};
+        req.set(http::field::host, host);
+        req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+        req.body() = "12345"; //просто типо пароль
+        req.prepare_payload();
+
+        // Send the HTTP request to the remote host
+        http::write(stream, req);
+        std::cerr << "запроса отправлен\n";
+        // This buffer is used for reading and must be persisted
+        boost::beast::flat_buffer buffer;
+
+        // Declare a container to hold the response
+        http::response<http::dynamic_body> res;
+
+        // Receive the HTTP response
+        http::read(stream, buffer, res);
+
+        boost::beast::error_code er;
+        stream.socket().shutdown(tcp::socket::shutdown_both, er);
+
+        std::cerr << "данные с сервера number приняты\n";
+        // Вывод статуса ответа
+        boost::system::error_code ec;
+        std::stringstream ss;
+        auto data = boost::beast::buffers_to_string(res.body().data());
+        auto value = json::parse(data, ec);
+        if (ec || !value.is_object()){
+            return {};
+        }
+        auto ans = value.as_object();
+        std::cerr << ans << "\n";
+        return {ans};
+    }
+    catch (const boost::system::system_error& e){
+        std::cerr << e.what() << "\n";
+        return {};
+    }
+
+}
+
+
+std::optional<json::object> Session::request_by_number(){
+  std::future<std::optional<json::object>> taskFuture = std::async(std::launch::async, longRunningTask);
+  // Устанавливаем таймаут для задачи
+  std::chrono::milliseconds timeout(1000); // 3 секунды
+
+  // Ждем завершения задачи или таймаута
+  if (taskFuture.wait_for(timeout) == std::future_status::timeout) {
+    return {}; //время истекло
+  } 
+  else {
+    // Получаем и выводим результат задачи
+    return taskFuture.get();
+    //std::cout << "Результат задачи: " << result << std::endl;
+  }
+}
 
 void fail(beast::error_code ec, char const* what){
 	std::cerr << what << ": " << ec.message() << "\n";
@@ -119,7 +195,14 @@ http::message_generator Session::get_request(std::string_view url){
 }
 
 http::message_generator Session::post_request(std::string_view body){
-    if (executor_->query_created(body)){
+    auto data = request_by_number();
+    std::cerr << "идем дальше по созданию 1\n";
+    if (!data.has_value()){
+        std::cerr << "сервер number не отвечает\n";
+        return server_error("сервер не отвечает");
+    }
+    std::cerr << "идем дальше по созданию 2\n";
+    if (executor_->query_created(body, std::move(data.value()))){
         http::response<http::string_body> res{http::status::created, 11};
         res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
         res.set(http::field::content_type, "text/html");

@@ -5,17 +5,8 @@
 #include <boost/asio/dispatch.hpp>
 #include <boost/asio/strand.hpp>
 #include <boost/config.hpp>
-#include <algorithm>
-#include <cstdlib>
-#include <functional>
-#include <iostream>
 #include <memory>
-#include <string>
-#include <string_view>
-#include <vector>
-#include "database.hpp"
-#include "executor_database.hpp"
-#include "schema.hpp"
+#include <stack>
 
 
 namespace beast = boost::beast;
@@ -27,7 +18,7 @@ void fail(beast::error_code ec, char const* what);
 
 class Session : public std::enable_shared_from_this<Session>{
 public:
-	Session(tcp::socket&& socket, std::shared_ptr<IDataBase> db);
+	Session(tcp::socket&& socket, std::stack<size_t>& numbers);
 	void run();
 private:
 	void do_read();
@@ -38,15 +29,11 @@ private:
 	
 	template <class Body, class Allocator>
 	http::message_generator handle_request(http::request<Body, http::basic_fields<Allocator>>&& req);
-	http::message_generator get_request(std::string_view url);
-	http::message_generator post_request(std::string_view body);
 	http::message_generator bad_request(std::string_view message);
 	http::message_generator not_found(std::string_view message);
-	http::message_generator server_error(std::string_view message);
-	std::optional<json::object> request_by_number();
 
 	beast::tcp_stream stream_;
 	beast::flat_buffer buffer_;
 	http::request<http::string_body> req_;
-	std::unique_ptr<ExecutorDataBase> executor_;
+    std::stack<size_t>& numbers_;
 };
